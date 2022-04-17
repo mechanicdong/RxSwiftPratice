@@ -60,6 +60,7 @@ class MainViewController: UIViewController {
             .map(checkPasswordValid)
             .subscribe(onNext: { b in
                 self.pwValidView.isHidden = b
+                self.loginButton.isEnabled = b
             })
             .disposed(by: disposeBag)
         
