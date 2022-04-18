@@ -26,27 +26,10 @@ class MainViewController: UIViewController {
     
     override func viewDidLoad() {
         super.viewDidLoad()
-        onLoad(jsonlink)
+
         bind(viewModel)
         attribute()
         layout()
-    }
-    
-    func onLoad(_ url: String) {
-        let observable = downloadJson(URLs: jsonlink)
-        observable.subscribe { event in
-            switch event {
-            case let .next(json):
-                DispatchQueue.main.async {
-                    self.textView.text = json
-                }
-            case .completed:
-                break
-            case .error:
-                break
-            }
-        }
-        .disposed(by: disposeBag)
     }
     
     func bind(_ viewModel: MainViewModel) {
@@ -70,14 +53,14 @@ class MainViewController: UIViewController {
             .bind(to: viewModel.pwValid)
             .disposed(by: disposeBag)
 
-
-
-        
         loginButton.rx.tap
-            .withLatestFrom(viewModel.idInputText)
+            .observe(on: ConcurrentDispatchQueueScheduler(qos: .default))
+            .flatMap { () -> Observable<String?> in
+                return viewModel.downloadJson(URLs: self.jsonlink)
+            }
             .bind(to: viewModel.jsonSub)
             .disposed(by: disposeBag)
-        
+            
         //Output
         viewModel.idValid
             .subscribe(onNext: { b in
@@ -111,31 +94,12 @@ class MainViewController: UIViewController {
         
         viewModel.jsonSub
             .subscribe(onNext: { text in
-                self.textView.text = text
+                DispatchQueue.main.async {
+                    self.textView.text = text
+                }
             })
             .disposed(by: disposeBag)
         
-    }
-    
-    func downloadJson(URLs url: String) -> Observable<String?> {
-        //1. 비동기로 생기는 데이터를 Observable로 감싸서 리턴하는 방법
-        return Observable.create { emitter in
-            let url = URL(string: url)!
-            let task = URLSession.shared.dataTask(with: url) { data, _, err in
-                guard err == nil else {
-                    emitter.onError(err!)
-                    return
-                }
-                if let dat = data, let json = String(data: dat, encoding: .utf8) {
-                    emitter.onNext(json)
-                }
-                emitter.onCompleted()
-            }
-            task.resume()
-            return Disposables.create {
-                task.cancel()
-            }
-        }
     }
     
     private func attribute() {
@@ -152,7 +116,7 @@ class MainViewController: UIViewController {
         loginButton.tintColor = .systemGray
         loginButton.backgroundColor = .systemGray
         loginButton.setTitle("입력정보 확인", for: .normal)
-//        loginButton.addTarget(self, action: #selector(showNextView), for: .touchDown)
+        //loginButton.addTarget(self, action: #selector(showNextView), for: .touchDown)
         
         idValidView.backgroundColor = .red
         idValidView.layer.cornerRadius = 10
@@ -208,17 +172,6 @@ class MainViewController: UIViewController {
             $0.leading.trailing.equalTo(idField)
             $0.height.equalTo(250)
         }
-        
-    }
-    
-    func downloadJson(_ url: String) -> String {
-        //let url = URL(string: <#T##String#>)
-        return ""
-    }
-    
-    func onLoad() {
-        textView.text = ""
-        
     }
 
 }

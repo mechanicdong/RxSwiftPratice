@@ -20,7 +20,8 @@ struct MainViewModel {
     let pwInputText = BehaviorSubject<String>(value: "")
     
     let jsonValid = BehaviorSubject<Bool>(value: false)
-    let jsonSub = BehaviorSubject<String>(value: "")
+    let jsonSub = BehaviorSubject<String?>(value: "")
+    
 
     //view에서 행해지는 로직을 viewModel로 옮기고 결과가 같은지 확인할것(4/17)
     func checkEmailValid(_ email: String) -> Bool {
@@ -31,5 +32,24 @@ struct MainViewModel {
         return password.count > 5
     }
     
-
+    func downloadJson(URLs url: String) -> Observable<String?> {
+        //1. 비동기로 생기는 데이터를 Observable로 감싸서 리턴하는 방법
+        return Observable.create { emitter in
+            let url = URL(string: url)!
+            let task = URLSession.shared.dataTask(with: url) { data, _, err in
+                guard err == nil else {
+                    emitter.onError(err!)
+                    return
+                }
+                if let dat = data, let json = String(data: dat, encoding: .utf8) {
+                    emitter.onNext(json)
+                }
+                emitter.onCompleted()
+            }
+            task.resume()
+            return Disposables.create {
+                task.cancel()
+            }
+        }
+    }
 }
